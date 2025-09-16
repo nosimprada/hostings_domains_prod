@@ -7,7 +7,7 @@ async def add_domain(ssh_ip: str, ssh_password: str, hestia_username: str, domai
     try:
         domain = domain.lower()
         async with connect(host=ssh_ip, username="root", password=ssh_password, known_hosts=None) as conn:
-            result = await conn.run(f"{_hestia_bin_path('v-add-domain')} {hestia_username} {domain} {ssh_ip}")
+            result = await conn.run(f"{_hestia_bin_path("v-add-domain")} {hestia_username} {domain} {ssh_ip}")
 
             # Если 0 - вернется True, если 1 - вернется ValueError с сообщением об ошибке
             return True if result.exit_status == 0 else ValueError(result.stderr)

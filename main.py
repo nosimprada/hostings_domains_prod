@@ -8,7 +8,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
 # from api.dynadot import get_user_balance
-# from api.hestia import enable_ssl_for_domain
+from api.hestia import enable_ssl_for_domain
 # from api.namecheap import check_available_zones, check_domain, get_domain_info
 from api.dynadot import domain_available, set_dns_hosts
 from config import API_KEY_NAMECHEAP, API_USER_NAMECHEAP, BOT_TOKEN, CLIENT_IP
@@ -50,10 +50,10 @@ async def main() -> None:
     # asyncio.create_task(
     # ssh_ip: str, ssh_password: str, hestia_username: str, domain: str
     # await enable_ssl_for_domain(
-    #         ssh_ip="65.20.103.39",
-    #         ssh_password="Vd5]8][jA)UaLT8L",
+    #         ssh_ip="95.179.209.160",
+    #         ssh_password="}Qw5x?soeH=z-BRz",
     #         hestia_username="admin",
-    #         domain="arcadegalaxy.site",
+    #         domain="nextlevelfun.sbs",
     #         # created_domain_id="93380150"
     #     )
     # print(await get_user_balance(api_key='49R6s6h6PRo8Vy07Q9E8dG8Ml7y16X6v7o7C718f'))
@@ -63,7 +63,7 @@ async def main() -> None:
     # ))
     # print(await set_dns_hosts(
     #     api_key='49R6s6h6PRo8Vy07Q9E8dG8Ml7y16X6v7o7C718f',
-    #         domains=['nextlevelfun.sbs'],
+    #         domains=['playrushgo.cfd'],
     #         ip_address='95.179.209.160'
     #     )
     # )

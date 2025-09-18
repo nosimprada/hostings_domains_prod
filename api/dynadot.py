@@ -100,37 +100,33 @@ async def domain_available(api_key: str, domain: str) -> bool | None:
 
 async def set_dns_hosts(api_key: str, domains: List[str], ip_address: str) -> bool:
     """
-        Example values for request
         :param api_key: "..."
-        :param domains: ["example.com", "test.com", "demo.com"]
+        :param domains: ["example.com", ...]
         :param ip_address: "192.168.1.1"
-        :return: None
+        :return: True/False
     """
-
     if len(domains) > 100:
         print("Error: Maximum 100 domains per request")
         return False
 
-    request_data = {
-        "domain": ",".join(domains),
-        "main_record_type0": "a",
-        "main_record_0": ip_address,
-        "main_record_type1": "a",
-        "main_record_1": ip_address,
-        "main_recordx1": "www",
-        "ttl": "1800"
-    }
+    for domain in domains:
+        request_data = {
+            "domain": domain,
+            "main_record_type0": "a",
+            "main_record0": ip_address,
+            "subdomain0": "www",
+            "sub_record_type0": "a",
+            "sub_record0": ip_address,
+            "ttl": "1800"
+        }
+        endpoint = f"{BASE_URL}{api_key}&command=set_dns2&{urlencode(request_data)}"
 
-    endpoint = f"{BASE_URL}{api_key}&command=set_dns2&{urlencode(request_data)}"
-
-    async with ClientSession() as session:
-        async with session.get(endpoint, data=request_data) as response:
-            data = await response.json(content_type=None)
-            print(data)
-
-            set_response = data.get("SetDnsResponse", {})
-            if not set_response or set_response.get("Status") != "success":
-                print(f"Status is not success: {await response.text()}")
-                return False
-
+        async with ClientSession() as session:
+            async with session.get(endpoint) as response:
+                data = await response.json(content_type=None)
+                print(data)
+                set_response = data.get("SetDnsResponse", {})
+                if not set_response or set_response.get("Status") != "success":
+                    print(f"Status is not success: {await response.text()}")
+                    return False
     return True

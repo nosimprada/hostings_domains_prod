@@ -48,3 +48,7 @@ async def update_domains_user_ids_for_server(server_id: str, new_user_id: int) -
 async def get_domain_available_id() -> int:
     async with AsyncSessionLocal() as session:
         return await DomainDAO.get_domain_available_id(session)
+
+async def get_domains_by_ssl_off() -> list[DomainReadSchema]:
+    async with AsyncSessionLocal() as session:
+        return await DomainDAO.get_domains_by_ssl_off(session)

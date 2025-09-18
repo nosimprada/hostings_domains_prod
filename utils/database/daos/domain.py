@@ -121,3 +121,9 @@ class DomainDAO:
             domain = result.scalars().first()
             if not domain:
                 return new_id
+            
+    @staticmethod
+    async def get_domains_by_ssl_off(db: AsyncSession) -> list[DomainReadSchema]:
+        result = await db.execute(select(Domain).where(Domain.ssl_activated == False, Domain.domain_status == 'ACTIVE'))
+        domains = result.scalars().all()
+        return [DomainReadSchema.model_validate(domain) for domain in domains]

@@ -1,7 +1,9 @@
 
 import asyncio
 from api.hestia import enable_ssl_for_domain
-from utils.database.services.domain import update_domain_ssl_activated
+from utils.database.services.domain import get_domains_by_ssl_off, update_domain_ssl_activated
+from utils.database.services.server import get_server_by_id
+from utils.database.services.user import get_user_by_tg_id
 from utils.schemas.server_db import ServerReadSchema
 
 
@@ -102,3 +104,31 @@ async def ssl_enable_with_retries(selected_server_ip, server_password, hestia_us
                 print(f"Все попытки исчерпаны для домена {domain_name} на сервере {selected_server_ip}. SSL не удалось включить.")
                 await asyncio.sleep(900)  # 15 минут
             attempt += 1
+
+async def ssl_enable_worker():
+    while True:
+        print("Запуск SSL-воркера...")
+        # Получить все домены без SSL
+        domains = await get_domains_by_ssl_off()
+        for domain in domains:
+            try:
+                user_data = await get_user_by_tg_id(domain.user_id)
+                server_data = await get_server_by_id(domain.server_id)
+                result_enable_ssl = await asyncio.wait_for(
+                    enable_ssl_for_domain(
+                        ssh_ip=server_data.server_ip,
+                        ssh_password=server_data.server_password,
+                        hestia_username=user_data.hestia_username,
+                        domain=domain.domain_name.lower()
+                    ),
+                    timeout=70
+                )
+                if result_enable_ssl:
+                    print(f"SSL успешно включен для {domain.domain_name}")
+                    await update_domain_ssl_activated(domain.domain_id, True)
+                else:
+                    print(f"Не удалось включить SSL для {domain.domain_name}")
+            except Exception as e:
+                print(f"Ошибка при включении SSL для {domain.domain_name}: {e}")
+        # Ждать 15 минут до следующего запуска
+        await asyncio.sleep(900)

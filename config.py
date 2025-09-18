@@ -10,7 +10,7 @@ from utils.schemas.user_db import NamecheapDataForApiSchema, NamecheapDataSchema
 
 load_dotenv()
 
-MODE = 'prod'  # 'dev' or 'prod'
+MODE = 'dev'  # 'dev' or 'prod'
 
 ADMIN_TG_ID = int(os.getenv("ADMIN_TG_ID", "0"))
 BOT_TOKEN_DEV = os.getenv("BOT_TOKEN_DEV")

@@ -256,14 +256,23 @@ async def auto_distribute_domains(user_id: int, created_domain_ids: list[str]):
         domain = await get_domain_by_id(created_domain_id)
         selected_server_ip = await get_available_server_ip_for_domain(user_id)
         print("Выбранный IP сервера:", selected_server_ip)  # Debugging line
-        result_set_dns = await set_dns_hosts(
-            api_user=user_data.namecheap_api_user,
-            api_key=user_data.namecheap_api_key,
-            api_username=user_data.namecheap_api_user,
-            api_client_ip=CLIENT_IP,
-            domain=domain.domain_name,
-            ip_address=selected_server_ip
-        )
+        result_set_dns = False
+        if domain.domain_provider == DomainProvider.NAMECHEAP:
+            result_set_dns = await set_dns_hosts(
+                api_user=user_data.namecheap_api_user,
+                api_key=user_data.namecheap_api_key,
+                api_username=user_data.namecheap_api_user,
+                api_client_ip=CLIENT_IP,
+                domain=domain.domain_name,
+                ip_address=selected_server_ip
+            )
+        elif domain.domain_provider == DomainProvider.DYNADOT:
+            result_set_dns = await dynadot.set_dns_hosts(
+                api_key=user_data.dynadot_api_key,
+                domains=[domain.domain_name],
+                ip_address=selected_server_ip
+            )
+
         if result_set_dns:
             server_data = await get_server_by_ip(selected_server_ip)
             result_add_domain = await add_domain(
@@ -276,15 +285,15 @@ async def auto_distribute_domains(user_id: int, created_domain_ids: list[str]):
                 log.append(f"✅ {domain.domain_name} — успешно распределён на сервер {server_data.server_name} ({selected_server_ip})")
                 update_domain_in_db = await update_domain_server_id(created_domain_id, server_data.server_id)
                 print("Обновление домена в БД:", update_domain_in_db)  # Debugging line
-                asyncio.create_task(
-                    ssl_enable_with_retries(
-                        selected_server_ip,
-                        server_data.server_password,
-                        user_data.hestia_username,
-                        domain.domain_name,
-                        created_domain_id
-                    )
-                )
+                # asyncio.create_task(
+                #     ssl_enable_with_retries(
+                #         selected_server_ip,
+                #         server_data.server_password,
+                #         user_data.hestia_username,
+                #         domain.domain_name,
+                #         created_domain_id
+                #     )
+                # )
             else:
                 log.append(f"❌ {domain.domain_name} — ошибка при добавлении на сервер {server_data.server_name} ({selected_server_ip})")
         else:
@@ -389,14 +398,23 @@ async def confirm_bind_domain_func(callback: CallbackQuery, domain_id: str, serv
         return
 
     user_data = await get_user_by_tg_id(callback.from_user.id)
-    result_set_dns = await set_dns_hosts(
-        api_user=user_data.namecheap_api_user,
-        api_key=user_data.namecheap_api_key,
-        api_username=user_data.namecheap_api_user,
-        api_client_ip=CLIENT_IP,
-        domain=domain.domain_name,
-        ip_address=server_data.server_ip
-    )
+    result_set_dns = False
+    if domain.domain_provider == DomainProvider.NAMECHEAP:
+        result_set_dns = await set_dns_hosts(
+            api_user=user_data.namecheap_api_user,
+            api_key=user_data.namecheap_api_key,
+            api_username=user_data.namecheap_api_user,
+            api_client_ip=CLIENT_IP,
+            domain=domain.domain_name,
+            ip_address=server_data.server_ip
+        )
+    elif domain.domain_provider == DomainProvider.DYNADOT:
+        result_set_dns = await dynadot.set_dns_hosts(
+            api_key=user_data.dynadot_api_key,
+            domains=[domain.domain_name],
+            ip_address=server_data.server_ip
+        )
+
     if result_set_dns:
         result_add_domain = await add_domain(
             ssh_ip=server_data.server_ip,
@@ -408,15 +426,15 @@ async def confirm_bind_domain_func(callback: CallbackQuery, domain_id: str, serv
             update_domain_in_db = await update_domain_server_id(domain_id, server_data.server_id)
             print("Обновление домена в БД:", update_domain_in_db)  # Debugging line
             await callback.message.answer(f"✅ Домен {domain.domain_name} успешно привязан к серверу {server_data.server_name} ({server_data.server_ip}).", reply_markup=await back_domains_kb())
-            asyncio.create_task(
-                ssl_enable_with_retries(
-                    server_data.server_ip,
-                    server_data.server_password,
-                    user_data.hestia_username,
-                    domain.domain_name,
-                    domain_id
-                )
-            )
+            # asyncio.create_task(
+            #     ssl_enable_with_retries(
+            #         server_data.server_ip,
+            #         server_data.server_password,
+            #         user_data.hestia_username,
+            #         domain.domain_name,
+            #         domain_id
+            #     )
+            # )
         else:
             await callback.message.answer(f"❌ Ошибка при добавлении домена {domain.domain_name} на сервер {server_data.server_name}.")
     else:

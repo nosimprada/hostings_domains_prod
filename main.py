@@ -10,10 +10,11 @@ from aiogram.fsm.storage.memory import MemoryStorage
 # from api.dynadot import get_user_balance
 # from api.hestia import enable_ssl_for_domain
 # from api.namecheap import check_available_zones, check_domain, get_domain_info
-from api.dynadot import domain_available
+from api.dynadot import domain_available, set_dns_hosts
 from config import API_KEY_NAMECHEAP, API_USER_NAMECHEAP, BOT_TOKEN, CLIENT_IP
 from handlers import routers
 from middlewares.block_check import BlockCheckMiddleware
+from outboxes.sundry import ssl_enable_worker
 # from outboxes.domains import auto_distribute_domains
 # from outboxes.sundry import ssl_enable_with_retries
 # from utils.database.services.domain import create_domain, update_domain_server_id
@@ -27,6 +28,7 @@ async def main() -> None:
     dp.include_routers(*routers)
     dp.message.middleware(BlockCheckMiddleware())
     dp.callback_query.middleware(BlockCheckMiddleware())
+    asyncio.create_task(ssl_enable_worker())
     # print(await get_domain_info(api_user=API_USER_NAMECHEAP, 
     #                             api_key=API_KEY_NAMECHEAP,
     #                             api_username=API_USER_NAMECHEAP, 
@@ -59,6 +61,12 @@ async def main() -> None:
     #     api_key='49R6s6h6PRo8Vy07Q9E8dG8Ml7y16X6v7o7C718f',
     #     domain='NextLevelFun.vip'
     # ))
+    # print(await set_dns_hosts(
+    #     api_key='49R6s6h6PRo8Vy07Q9E8dG8Ml7y16X6v7o7C718f',
+    #         domains=['nextlevelfun.sbs'],
+    #         ip_address='95.179.209.160'
+    #     )
+    # )
     await dp.start_polling(bot)
 
 if __name__ == "__main__":

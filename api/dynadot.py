@@ -126,6 +126,7 @@ async def set_dns_hosts(api_key: str, domains: List[str], ip_address: str) -> bo
     async with ClientSession() as session:
         async with session.get(endpoint, data=request_data) as response:
             data = await response.json(content_type=None)
+            print(data)
 
             set_response = data.get("SetDnsResponse", {})
             if not set_response or set_response.get("Status") != "success":

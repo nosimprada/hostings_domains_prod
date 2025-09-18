@@ -1,12 +1,21 @@
 from aiogram.types import Message, CallbackQuery
 
+from api import dynadot
 from api.namecheap import get_user_balance
 from config import CLIENT_IP
-from keyboards.settings import get_settings_namecheap_kb
-from utils.database.services.user import get_namecheap_credentials, update_namecheap_credentials, update_namecheap_enabled
-from utils.schemas.user_db import NamecheapDataSchema
+from keyboards.settings import (
+    get_settings_dynadot_kb,
+    get_settings_main_kb, 
+    get_settings_namecheap_kb
+)
+from utils.database.services.user import get_namecheap_credentials, get_user_by_tg_id, update_dynadot_credentials, update_namecheap_credentials, update_namecheap_enabled
+from utils.schemas.user_db import DynadotDataSchema, NamecheapDataSchema
 
-async def settings_handler_outbox_callback(callback: CallbackQuery):
+async def settings_handler_outbox_func(callback: CallbackQuery):
+    await callback.message.answer(text="Выберите провайдера для настройки:", 
+                                  reply_markup=await get_settings_main_kb(callback.from_user.id))
+
+async def settings_handler_namecheap_outbox_callback(callback: CallbackQuery):
     namecheap_credentials = await get_namecheap_credentials(callback.from_user.id)
     api_user = namecheap_credentials.api_user
     api_key = namecheap_credentials.api_key
@@ -58,7 +67,7 @@ async def settings_handler_outbox_callback(callback: CallbackQuery):
 
     await callback.message.answer(text=msg_info, reply_markup=await get_settings_namecheap_kb())
 
-async def settings_handler_outbox_message(message: Message):
+async def settings_handler_namecheap_outbox_message(message: Message):
     namecheap_credentials = await get_namecheap_credentials(message.from_user.id)
     api_user = namecheap_credentials.api_user
     api_key = namecheap_credentials.api_key
@@ -116,7 +125,7 @@ async def set_namecheap_api_key(message: Message, api_key: str):
         api_key=api_key
     )
     await update_namecheap_credentials(namecheap_data)
-    await settings_handler_outbox_message(message)
+    await settings_handler_namecheap_outbox_message(message)
 
 async def set_namecheap_api_user(message: Message, api_user: str):
     namecheap_data = NamecheapDataSchema(
@@ -124,4 +133,74 @@ async def set_namecheap_api_user(message: Message, api_user: str):
         api_user=api_user
     )
     await update_namecheap_credentials(namecheap_data)
-    await settings_handler_outbox_message(message)
+    await settings_handler_namecheap_outbox_message(message)
+
+
+async def settings_handler_dynadot_outbox_callback(callback: CallbackQuery):
+    user_data = await get_user_by_tg_id(callback.from_user.id)
+    dynadot_api_key = user_data.dynadot_api_key
+    status_dynadot = await dynadot.get_user_balance(api_key=dynadot_api_key)
+    print(status_dynadot)
+    if status_dynadot is not None:
+        msg_info = f"""
+==============================
+🌐 <b>PROVIDER: Dynadot</b> (Активен) ✅
+🗝️ <b>Креденшелы:</b>
+<b>┗ 🔑 API ключ: <code>{dynadot_api_key}</code></b>
+==============================
+"""
+    else:
+        api_key = dynadot_api_key if dynadot_api_key else "—"
+        msg_info = f"""
+==============================
+🌐 <b>PROVIDER: Dynadot (Неактивен) ❌</b>
+⚠️ Система Dynadot отключена или не настроена.
+Пожалуйста, проверьте данные.
+
+🔒 Убедитесь, что IP-адрес сервера добавлен
+в белый список в настройках безопасности вашего аккаунта Dynadot.
+🛜 <b>IP: <code>{CLIENT_IP}</code></b>
+
+🗝️ <b>Креденшелы:</b>
+<b>┗ 🔑 API ключ: <code>{api_key}</code></b>
+==============================
+"""
+    await callback.message.answer(text=msg_info, reply_markup=await get_settings_dynadot_kb())
+
+async def settings_handler_dynadot_outbox_message(message: Message):
+    user_data = await get_user_by_tg_id(message.from_user.id)
+    dynadot_api_key = user_data.dynadot_api_key
+    status_dynadot = await dynadot.get_user_balance(api_key=dynadot_api_key)
+    if status_dynadot is not None:
+        msg_info = f"""
+==============================
+🌐 <b>PROVIDER: Dynadot</b> (Активен) ✅
+🗝️ <b>Креденшелы:</b>
+<b>┗ 🔑 API ключ: <code>{dynadot_api_key}</code></b>
+==============================
+"""
+    else:
+        api_key = dynadot_api_key if dynadot_api_key else "—"
+        msg_info = f"""
+==============================
+🌐 <b>PROVIDER: Dynadot (Неактивен) ❌</b>
+⚠️ Система Dynadot отключена или не настроена.
+Пожалуйста, проверьте данные.
+
+🔒 Убедитесь, что IP-адрес сервера добавлен
+в белый список в настройках безопасности вашего аккаунта Dynadot.
+🛜 <b>IP: <code>{CLIENT_IP}</code></b>
+
+🗝️ <b>Креденшелы:</b>
+<b>┗ 🔑 API ключ: <code>{api_key}</code></b>
+==============================
+"""
+    await message.answer(text=msg_info, reply_markup=await get_settings_dynadot_kb())
+
+
+async def set_dynadot_api_key_func(message: Message, api_key: str):
+    await update_dynadot_credentials(DynadotDataSchema(
+        user_id=message.from_user.id,
+        dynadot_api_key=api_key
+    ))
+    await settings_handler_dynadot_outbox_message(message)

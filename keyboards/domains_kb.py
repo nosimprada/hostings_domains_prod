@@ -3,6 +3,8 @@ from typing import List
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from api import dynadot, namecheap
+from config import CLIENT_IP
 from outboxes.sundry import get_servers_with_free_slots
 from utils.database.services.domain import get_active_domains_by_server_id, get_active_domains_by_user_id, \
     get_domain_by_id
@@ -31,6 +33,14 @@ async def get_domains_menu_kb(user_id: int, page: int = 1, per_page: int = 8,
 
     domains = await get_active_domains_by_user_id(user_id)
     domains_sorted = sorted(domains, key=lambda d: (d.server_id is not None, d.domain_name))
+    user_data = await get_user_by_tg_id(user_id)
+    balance_dynadot = await dynadot.get_user_balance(api_key=user_data.dynadot_api_key)
+    balance_namecheap = await namecheap.get_user_balance(
+        api_user=user_data.namecheap_api_user,
+        api_key=user_data.namecheap_api_key,
+        api_username=user_data.namecheap_api_user,
+        api_client_ip=CLIENT_IP
+    )
 
     total = len(domains_sorted)
 
@@ -42,7 +52,10 @@ async def get_domains_menu_kb(user_id: int, page: int = 1, per_page: int = 8,
     builder = InlineKeyboardBuilder()
 
     if not admin:
-        builder.button(text="🚀 Купить домен Namecheap", callback_data="create_domain")
+        if balance_dynadot is not None:
+            builder.button(text="🚀 Купить домен Dynadot", callback_data="create_domain_dynadot")
+        if balance_namecheap is not None:
+            builder.button(text="🚀 Купить домен Namecheap", callback_data="create_domain_namecheap")
 
     for domain in page_domains:
         text = f"🏧 {domain.domain_name} (SSL:{'✅' if domain.ssl_activated else '❌'})"
@@ -84,10 +97,18 @@ async def get_domains_menu_kb(user_id: int, page: int = 1, per_page: int = 8,
     return builder.as_markup(resize_keyboard=True)
 
 
-async def confirm_buy_domains_kb(count_available: int) -> InlineKeyboardMarkup:
+async def confirm_buy_domains_namecheap_kb(count_available: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     if count_available > 0:
-        builder.button(text="📥 Купить", callback_data="confirm_buy_domains")
+        builder.button(text="📥 Купить", callback_data="confirm_buy_domains_namecheap")
+    builder.button(text="🔙 Назад", callback_data="domains")
+    builder.adjust(1, 1)
+    return builder.as_markup(resize_keyboard=True)
+
+async def confirm_buy_domains_dynadot_kb(count_available: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if count_available > 0:
+        builder.button(text="📥 Купить", callback_data="confirm_buy_domains_dynadot")
     builder.button(text="🔙 Назад", callback_data="domains")
     builder.adjust(1, 1)
     return builder.as_markup(resize_keyboard=True)

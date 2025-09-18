@@ -33,6 +33,8 @@ class User(Base):
     namecheap_api_key = Column(String, nullable=True)
     namecheap_api_user = Column(String, nullable=True)
 
+    dynadot_api_key = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     

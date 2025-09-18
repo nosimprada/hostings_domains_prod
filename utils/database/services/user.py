@@ -1,5 +1,7 @@
 from utils.database.daos.user import UserDAO
 from utils.schemas.user_db import (
+    DynadotDataReadSchema,
+    DynadotDataSchema,
     NamecheapDataReadSchema,
     NamecheapDataSchema, 
     UserCreateSchema, 
@@ -38,6 +40,10 @@ async def get_namecheap_credentials(tg_id: int) -> NamecheapDataReadSchema | Non
 async def update_namecheap_credentials(credentials: NamecheapDataSchema) -> NamecheapDataReadSchema | None:
     async with AsyncSessionLocal() as session:
         return await UserDAO.update_namecheap_credentials(session, credentials)
+
+async def update_dynadot_credentials(credentials: DynadotDataSchema) -> DynadotDataReadSchema | None:
+    async with AsyncSessionLocal() as session:
+        return await UserDAO.update_dynadot_credentials(session, credentials)
     
 async def update_namecheap_enabled(tg_id: int, enabled: bool) -> bool:
     async with AsyncSessionLocal() as session:

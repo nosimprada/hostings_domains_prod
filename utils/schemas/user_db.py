@@ -34,7 +34,7 @@ class UserReadSchema(BaseModel):
     namecheap_api_key: str | None = None
     namecheap_api_user: str | None = None
     namecheap_username: str | None = None
-
+    dynadot_api_key: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True 
@@ -55,3 +55,11 @@ class NamecheapDataForApiSchema(BaseModel):
     api_key: str | None = None
     username: str | None = None
     client_ip: str | None = None
+
+class DynadotDataSchema(BaseModel):
+    user_id: int
+    dynadot_api_key: str | None = None
+
+class DynadotDataReadSchema(BaseModel):
+    user_id: int
+    dynadot_api_key: str | None = None

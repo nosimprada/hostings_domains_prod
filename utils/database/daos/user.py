@@ -2,6 +2,8 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.database.models.user import User
 from utils.schemas.user_db import (
+    DynadotDataReadSchema,
+    DynadotDataSchema,
     NamecheapDataReadSchema,
     UserRole, 
     UserCreateSchema, 
@@ -113,5 +115,20 @@ class UserDAO:
             return NamecheapDataSchema(
                 api_user=user.namecheap_api_user,
                 api_key=user.namecheap_api_key
+            )
+        return None
+    
+    @staticmethod
+    async def update_dynadot_credentials(session: AsyncSession, credentials: DynadotDataSchema) -> DynadotDataReadSchema | None:
+        result = await session.execute(select(User).where(User.tg_id == credentials.user_id))
+        user = result.scalars().first()
+        if user:
+            if credentials.dynadot_api_key is not None:
+                user.dynadot_api_key = credentials.dynadot_api_key
+            await session.commit()
+            await session.refresh(user)
+            return DynadotDataReadSchema(
+                user_id=user.tg_id,
+                dynadot_api_key=user.dynadot_api_key
             )
         return None

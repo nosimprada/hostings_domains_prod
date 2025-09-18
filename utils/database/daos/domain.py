@@ -1,3 +1,4 @@
+import random
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.database.models.domain import Domain
@@ -111,3 +112,12 @@ class DomainDAO:
         await db.commit()
         updated_domains = result.scalars().all()
         return [DomainReadSchema.model_validate(domain) for domain in updated_domains]
+
+    @staticmethod
+    async def get_domain_available_id(db: AsyncSession) -> int:
+        while True:
+            new_id = random.randint(10_000_000, 99_999_999)
+            result = await db.execute(select(Domain).where(Domain.domain_id == new_id))
+            domain = result.scalars().first()
+            if not domain:
+                return new_id

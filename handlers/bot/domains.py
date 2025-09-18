@@ -5,14 +5,29 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import CallbackQuery, Message
 
 from keyboards.domains_kb import back_domains_kb, get_domains_menu_kb
-from outboxes.domains import confirm_bind_domain_func, domains_menu, get_active_users_for_reassign_domain, \
-    get_domain_management_menu, handle_action_auto_distribute_domains, handle_binding_domain_func, \
-    handle_confirm_buy_domains_func, handle_domain_input_func, reassign_domain_handler_func
+from outboxes.domains import (
+    confirm_bind_domain_func, 
+    domains_menu, 
+    get_active_users_for_reassign_domain,
+    get_domain_management_menu, 
+    handle_action_auto_distribute_domains, 
+    handle_binding_domain_func,
+    handle_confirm_buy_domains_func,
+    handle_domain_input_to_dynadot_func, 
+    handle_domain_input_to_namecheap_func, 
+    reassign_domain_handler_func
+)
+from utils.schemas.domain_db import DomainProvider
 
 router = Router()
 
 
-class DomainStates(StatesGroup):
+class DomainNamecheapStates(StatesGroup):
+    waiting_for_domains = State()
+    confirm_buy_domains = State()
+    waiting_action_by_domains = State()
+
+class DomainDynadotStates(StatesGroup):
     waiting_for_domains = State()
     confirm_buy_domains = State()
     waiting_action_by_domains = State()
@@ -55,7 +70,7 @@ async def handle_domains_query(callback: CallbackQuery, state: FSMContext):
     await domains_menu(callback)
 
 
-@router.callback_query(F.data.startswith("create_domain"))
+@router.callback_query(F.data.startswith("create_domain_namecheap"))
 async def handle_create_domain_query(callback: CallbackQuery, state: FSMContext):
     msg = """
 ==============================
@@ -68,11 +83,28 @@ example.com
 example.net
 ==============================
 """
-    await state.set_state(DomainStates.waiting_for_domains)
+    await state.set_state(DomainNamecheapStates.waiting_for_domains)
     await callback.message.answer(text=msg, reply_markup=await back_domains_kb())
 
 
-@router.message(StateFilter(DomainStates.waiting_for_domains))
+@router.callback_query(F.data.startswith("create_domain_dynadot"))
+async def handle_create_domain_query(callback: CallbackQuery, state: FSMContext):
+    msg = """
+==============================
+<b>🔎***Проверка доменов***🔍</b>
+
+Отправьте каждый домен с новой строки.
+==============================
+Пример:
+example.com
+example.net
+==============================
+"""
+    await state.set_state(DomainDynadotStates.waiting_for_domains)
+    await callback.message.answer(text=msg, reply_markup=await back_domains_kb())
+
+
+@router.message(StateFilter(DomainNamecheapStates.waiting_for_domains))
 async def handle_domain_input(message: Message, state: FSMContext):
     domains = message.text.strip().split("\n")
     domains = [domain.strip() for domain in domains if domain.strip()]
@@ -81,11 +113,24 @@ async def handle_domain_input(message: Message, state: FSMContext):
         return
     print(domains)  # Debugging line to check the received domains
     await state.update_data(domains=domains)
-    await handle_domain_input_func(message, state)
-    await state.set_state(DomainStates.confirm_buy_domains)
+    await handle_domain_input_to_namecheap_func(message, state)
+    await state.set_state(DomainNamecheapStates.confirm_buy_domains)
 
 
-@router.callback_query(StateFilter(DomainStates.confirm_buy_domains))
+@router.message(StateFilter(DomainDynadotStates.waiting_for_domains))
+async def handle_domain_input(message: Message, state: FSMContext):
+    domains = message.text.strip().split("\n")
+    domains = [domain.strip() for domain in domains if domain.strip()]
+    if not domains:
+        await message.answer("Пожалуйста, отправьте хотя бы один домен.")
+        return
+    print(domains)  # Debugging line to check the received domains
+    await state.update_data(domains=domains)
+    await handle_domain_input_to_dynadot_func(message, state)
+    await state.set_state(DomainDynadotStates.confirm_buy_domains)
+
+
+@router.callback_query(StateFilter(DomainNamecheapStates.confirm_buy_domains))
 async def handle_confirm_buy_domains(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer('Начинаю обработку ваших доменов, это может занять некоторое время...')
     state_data = await state.get_data()
@@ -93,11 +138,24 @@ async def handle_confirm_buy_domains(callback: CallbackQuery, state: FSMContext)
     if not domains:
         await callback.message.answer("Нет доступных доменов для покупки.")
         return
-    await handle_confirm_buy_domains_func(callback, state)
-    await state.set_state(DomainStates.waiting_action_by_domains)
+    await handle_confirm_buy_domains_func(callback, state, DomainProvider.NAMECHEAP)
+    await state.set_state(DomainNamecheapStates.waiting_action_by_domains)
+
+@router.callback_query(StateFilter(DomainDynadotStates.confirm_buy_domains))
+async def handle_confirm_buy_domains(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer('Начинаю обработку ваших доменов, это может занять некоторое время...')
+    state_data = await state.get_data()
+    domains = state_data.get("domains", [])
+    if not domains:
+        await callback.message.answer("Нет доступных доменов для покупки.")
+        return
+    
+    await handle_confirm_buy_domains_func(callback, state, DomainProvider.DYNADOT)
+    #Ставим состояние ожидания действия на Неймчип, чтоб не разделять функционал
+    await state.set_state(DomainNamecheapStates.waiting_action_by_domains) 
 
 
-@router.callback_query(StateFilter(DomainStates.waiting_action_by_domains))
+@router.callback_query(StateFilter(DomainNamecheapStates.waiting_action_by_domains))
 async def handle_action_by_domains(callback: CallbackQuery, state: FSMContext):
     if callback.data.startswith("auto_distribute_domains"):
         await callback.message.answer('Начинаю автоматическое распределение доменов...')

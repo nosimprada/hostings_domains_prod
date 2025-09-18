@@ -5,6 +5,8 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
+from api import dynadot
+from api.dynadot import domain_available
 from api.hestia import add_domain, enable_ssl_for_domain
 from api.namecheap import (
     check_domain, 
@@ -25,8 +27,9 @@ from config import (
 )
 from keyboards.domains_kb import (
     back_domains_kb,
-    choose_domain_slot_distribution_kb, 
-    confirm_buy_domains_kb,
+    choose_domain_slot_distribution_kb,
+    confirm_buy_domains_dynadot_kb,
+    confirm_buy_domains_namecheap_kb,
     get_available_servers_for_domain_binding_kb, 
     get_domains_menu_kb,
     get_users_list_for_reassign_kb,
@@ -41,6 +44,7 @@ from utils.database.services.domain import (
     create_domain,
     get_active_domains_by_server_id,
     get_active_domains_by_user_id,
+    get_domain_available_id,
     get_domain_by_id,
     update_domain_server_id,
     update_domain_ssl_activated,
@@ -67,7 +71,7 @@ async def domains_menu(callback: CallbackQuery, page: int = 1):
     )
 
 
-async def handle_domain_input_func(message: Message, state: FSMContext):
+async def handle_domain_input_to_namecheap_func(message: Message, state: FSMContext):
     user_data = await get_user_by_tg_id(message.from_user.id)
     state_data = await state.get_data()
     domains = state_data.get("domains", [])
@@ -97,10 +101,40 @@ async def handle_domain_input_func(message: Message, state: FSMContext):
 <b>Доступно для покупки: {len(available_domains)}</b>
 """
     await state.update_data(domains=available_domains)
-    await message.answer(text=msg_info, reply_markup=await confirm_buy_domains_kb(len(available_domains)))
+    await message.answer(text=msg_info, reply_markup=await confirm_buy_domains_namecheap_kb(len(available_domains)))
 
 
-async def handle_confirm_buy_domains_func(callback: CallbackQuery, state: FSMContext):
+async def handle_domain_input_to_dynadot_func(message: Message, state: FSMContext):
+    user_data = await get_user_by_tg_id(message.from_user.id)
+    state_data = await state.get_data()
+    domains = state_data.get("domains", [])
+
+    result_domains = []
+    available_domains = []
+    for domain in domains:
+        is_available = await domain_available(
+            api_key=user_data.dynadot_api_key,
+            domain=domain
+        )
+        mark = "✅" if is_available else "❌"
+        result_domains.append(f"{domain} {mark}")
+        if is_available:
+            available_domains.append(domain)
+
+    msg_info = f"""
+==============================
+<b>Результаты проверки доменов:</b>
+("✅" - доступен, "❌" - недоступен)
+==============================
+{'\n'.join(result_domains)}
+==============================
+<b>Доступно для покупки: {len(available_domains)}</b>
+"""
+    await state.update_data(domains=available_domains)
+    await message.answer(text=msg_info, reply_markup=await confirm_buy_domains_dynadot_kb(len(available_domains)))
+
+
+async def handle_confirm_buy_domains_func(callback: CallbackQuery, state: FSMContext, provider: DomainProvider):
     state_data = await state.get_data()
     user_data = await get_user_by_tg_id(callback.from_user.id)
     domains = state_data.get("domains", [])
@@ -110,51 +144,80 @@ async def handle_confirm_buy_domains_func(callback: CallbackQuery, state: FSMCon
 
     log = []
     created_domain_ids = []
-    for domain in domains:
-        try:
-            response = await register_domain(
-                api_user=user_data.namecheap_api_user,
-                api_key=user_data.namecheap_api_key,
-                api_username=user_data.namecheap_api_user,
-                api_client_ip=CLIENT_IP,
-                data={
-                    "domain": domain,
-                    "years": 1,
-                    "address": {
-                        "FirstName": FIRST_NAME,
-                        "LastName": LAST_NAME,
-                        "Address1": ADDRESS1,
-                        "City": CITY,
-                        "StateProvince": STATE_PROVINCE,
-                        "PostalCode": POSTAL_CODE,
-                        "Country": COUNTRY,
-                        "Phone": PHONE,
-                        "EmailAddress": EMAIL_ADDRESS
-                    },
-                    "nameservers": None,
-                    "coupon": None,
-                    "add_whoisguard": True,
-                    "enable_whoisguard": True
-                }
-            )
-            print(response)  # Debugging line to check the response
-            if response is not None:
-                domain_id = response.id
-                domain_name = response.name
-                domain_data = DomainCreateSchema(
-                    user_id=callback.from_user.id,                    
-                    domain_name=domain_name,
-                    domain_provider=DomainProvider.NAMECHEAP,
-                    domain_id=domain_id,
+    if provider == DomainProvider.NAMECHEAP:
+        for domain in domains:
+            try:
+                response = await register_domain(
+                    api_user=user_data.namecheap_api_user,
+                    api_key=user_data.namecheap_api_key,
+                    api_username=user_data.namecheap_api_user,
+                    api_client_ip=CLIENT_IP,
+                    data={
+                        "domain": domain,
+                        "years": 1,
+                        "address": {
+                            "FirstName": FIRST_NAME,
+                            "LastName": LAST_NAME,
+                            "Address1": ADDRESS1,
+                            "City": CITY,
+                            "StateProvince": STATE_PROVINCE,
+                            "PostalCode": POSTAL_CODE,
+                            "Country": COUNTRY,
+                            "Phone": PHONE,
+                            "EmailAddress": EMAIL_ADDRESS
+                        },
+                        "nameservers": None,
+                        "coupon": None,
+                        "add_whoisguard": True,
+                        "enable_whoisguard": True
+                    }
                 )
-                crated_domain_in_db = await create_domain(domain_data)
-                domain_id = crated_domain_in_db.domain_id
-                created_domain_ids.append(domain_id)
-                log.append(f"✅ {domain} — успешно куплен")
-            else:
-                log.append(f"❌ {domain} — ошибка регистрации (нет ответа)")
-        except Exception as e:
-            log.append(f"❌ {domain} — ошибка регистрации: {e}")
+                print(response)  # Debugging line to check the response
+                if response is not None:
+                    domain_id = response.id
+                    domain_name = response.name
+                    domain_data = DomainCreateSchema(
+                        user_id=callback.from_user.id,                    
+                        domain_name=domain_name,
+                        domain_provider=DomainProvider.NAMECHEAP,
+                        domain_id=domain_id,
+                    )
+                    crated_domain_in_db = await create_domain(domain_data)
+                    domain_id = crated_domain_in_db.domain_id
+                    created_domain_ids.append(domain_id)
+                    log.append(f"✅ {domain} — успешно куплен")
+                else:
+                    log.append(f"❌ {domain} — ошибка регистрации (нет ответа)")
+            except Exception as e:
+                log.append(f"❌ {domain} — ошибка регистрации: {e}")
+
+    elif provider == DomainProvider.DYNADOT:
+        for domain in domains:
+            try:
+                response = await dynadot.register_domain(
+                    api_key=user_data.dynadot_api_key,
+                    domain=domain,
+                    years=1,
+                    currency="USD"
+                )
+                print(response)  # Debugging line to check the response
+                if response is not None:
+                    domain_id = await get_domain_available_id()
+                    domain_name = response
+                    domain_data = DomainCreateSchema(
+                        user_id=callback.from_user.id,                    
+                        domain_name=domain_name,
+                        domain_provider=DomainProvider.DYNADOT,
+                        domain_id=domain_id,  # Dynadot does not provide a domain ID in this example
+                    )
+                    crated_domain_in_db = await create_domain(domain_data)
+                    domain_id = crated_domain_in_db.domain_id
+                    created_domain_ids.append(domain_id)
+                    log.append(f"✅ {domain} — успешно куплен")
+                else:
+                    log.append(f"❌ {domain} — ошибка регистрации (нет ответа)")
+            except Exception as e:
+                log.append(f"❌ {domain} — ошибка регистрации: {e}")
 
     # Сохраняем список id созданных доменов в состояние
     await state.update_data(created_domain_ids=created_domain_ids)

@@ -44,3 +44,7 @@ async def update_domain_user_id(domain_id: int, new_user_id: int) -> DomainReadS
 async def update_domains_user_ids_for_server(server_id: str, new_user_id: int) -> DomainReadSchema:
     async with AsyncSessionLocal() as session:
         return await DomainDAO.update_domains_user_ids_for_server(session, server_id, new_user_id)
+    
+async def get_domain_available_id() -> int:
+    async with AsyncSessionLocal() as session:
+        return await DomainDAO.get_domain_available_id(session)

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 class DomainProvider(enum.Enum):
     NAMECHEAP = "Namecheap"
+    DYNADOT = "Dynadot"
 
 
 class DomainStatus(enum.Enum):

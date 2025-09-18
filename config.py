@@ -10,7 +10,7 @@ from utils.schemas.user_db import NamecheapDataForApiSchema, NamecheapDataSchema
 
 load_dotenv()
 
-MODE = 'prod'  # 'dev' or 'prod'
+MODE = 'dev'  # 'dev' or 'prod'
 
 ADMIN_TG_ID = int(os.getenv("ADMIN_TG_ID", "0"))
 BOT_TOKEN_DEV = os.getenv("BOT_TOKEN_DEV")
@@ -73,3 +73,7 @@ PLAN_FOR_VULTR = "vc2-1c-1gb"  # 1 CPU, 1 GB RAM, 25 GB SSD, 1 TB Bandwidth
 # -------------------------------------------------
 # Hestia\FTP configuration
 EMAIL = os.getenv("EMAIL")  # For Hestia
+
+
+ # Dynadot API configuration
+DYNADOT_API_KEY = os.getenv("DYNADOT_API_KEY")

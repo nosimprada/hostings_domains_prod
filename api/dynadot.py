@@ -66,6 +66,36 @@ async def register_domain(api_key: str, domain: str, years: int, currency: str) 
                 return None
 
             return register_response.get("DomainName") if register_response else None
+        
+async def domain_available(api_key: str, domain: str) -> bool | None:
+    """
+        :param api_key: "..."
+        :param domain: "example.com"
+        :return: True if available, False if not, None if error
+    """
+    domain = domain.lower()
+    endpoint = f"{BASE_URL}{api_key}&command=search&domain0={domain}"
+
+    async with ClientSession() as session:
+        async with session.get(endpoint) as response:
+            data = await response.json(content_type=None)
+            print(data)
+
+            search_response = data.get("SearchResponse", {})
+            search_results = search_response.get("SearchResults", [])
+            if not search_results:
+                print(f"Status is not success: {await response.text()}")
+                return None
+
+            # Берём первый результат (или ищем по имени)
+            for result in search_results:
+                if result.get("DomainName", "").lower() == domain:
+                    available_str = result.get("Available", "").lower()
+                    return available_str == "yes"
+            # Если не нашли — None
+            return None
+
+    return None
 
 
 async def set_dns_hosts(api_key: str, domains: List[str], ip_address: str) -> bool:

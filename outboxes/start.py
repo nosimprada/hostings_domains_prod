@@ -78,22 +78,26 @@ async def get_main_msg(user_id: int):
         count_active_domains = len(domains)
 
         # Для WORKER тоже пробуем получить баланс
-        balance = await get_user_balance(
+        namecheap_api_balance = await namecheap.get_user_balance(
             api_user=user_data.namecheap_api_user,
             api_key=user_data.namecheap_api_key,
             api_username=user_data.namecheap_api_user,
             api_client_ip=CLIENT_IP
         )
+        dynadot_api_balance = await dynadot.get_user_balance(api_key=user_data.dynadot_api_key)
 
-        if balance is not None:
-            namecheap_balance = f"{balance}$ 🟢"
+        if namecheap_api_balance is not None:
+            namecheap_balance = f"{namecheap_api_balance}$ 🟢"
+        if dynadot_api_balance is not None:
+            dynadot_balance = f"{dynadot_api_balance}$ 🟢"
         msg = f"""
 ==============================
 🧑‍💻<b>Tag: <code>@{user_data.username}</code></b>
 🆔<b>TG_ID: <code>{user_data.tg_id}</code></b>
 🏧<b>Домены: {count_active_domains}</b>
 🌐<b>Сервера: {count_active_servers}</b>
-➡️<b>Namecheap: {namecheap_balance}</b>
+➡️<b>Namecheap (Личный): {namecheap_balance}</b>
+➡️<b>Dynadot (Личный): {dynadot_balance}</b>
 ==============================
 <b>📁HestiaCP/SFTP:</b>
 <b>┣ <code>{user_data.hestia_username}</code></b>
